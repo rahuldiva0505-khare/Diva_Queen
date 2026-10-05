@@ -1,0 +1,16 @@
+{
+  "name": "Diva Queen",
+  "short_name": "Diva Queen",
+  "description": "Diva Queen shopping app",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf7fb",
+  "theme_color": "#5b164f",
+  "lang": "en-IN",
+  "icons": [
+    {"src":"icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},
+    {"src":"icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
