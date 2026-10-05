@@ -2,7 +2,7 @@
   "name": "Diva Queen",
   "short_name": "Diva Queen",
   "description": "Diva Queen shopping app",
-  "start_url": "/Diva_Queen/",
+  "start_url": "/Diva_Queen/?app=1",
   "scope": "/Diva_Queen/",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,7 +10,17 @@
   "theme_color": "#5b164f",
   "lang": "en-IN",
   "icons": [
-    {"src": "/Diva_Queen/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable"},
-    {"src": "/Diva_Queen/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable"}
+    {
+      "src": "/Diva_Queen/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Diva_Queen/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
