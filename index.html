@@ -954,7 +954,8 @@ window.addEventListener('load',function(){
   window.dqFirebaseRegister=async function(role,data){
     const email=normEmail(data.email),phone=String(data.phone||'').trim();
     if(!isEmail(email)||!isPhone(phone)||!data.password)throw new Error('INVALID_DATA');
-    const existing=await fs.collection('profiles').where('phone','==',phone).limit(1).get();if(!existing.empty)throw new Error('MOBILE_EXISTS');
+    // Phone uniqueness lookup cannot be done before authentication because Firestore rules protect profiles.
+    // Firebase Authentication enforces email uniqueness; phone is stored in the authenticated user's profile.
     const cred=await fa.createUserWithEmailAndPassword(email,data.password);
     await fs.collection('profiles').doc(cred.user.uid).set({...data,email,phone,role,createdAt:firebase.firestore.FieldValue.serverTimestamp(),uid:cred.user.uid});
     return {cred,profile:{...data,email,phone,role,uid:cred.user.uid}};
