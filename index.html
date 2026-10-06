@@ -963,9 +963,9 @@ window.addEventListener('load',function(){
   fa.onAuthStateChanged(async u=>{
     if(!u)return;
     try{const p=await profile(u.uid);if(!p)return;window.dqAuthProfile=p;
-      if(p.role==='customer'){user={...p,id:u.uid};seller=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();}
-      if(p.role==='seller'){seller={...p,id:u.uid};user=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();}
-      if(p.role==='admin'){isAdmin=true;user=null;seller=null;if(typeof syncTop==='function')syncTop();}
+      if(p.role==='customer'){user={...p,id:u.uid};seller=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();await remoteLoad();}
+      if(p.role==='seller'){seller={...p,id:u.uid};user=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();await remoteLoad();}
+      if(p.role==='admin'){isAdmin=true;user=null;seller=null;if(typeof syncTop==='function')syncTop();await remoteLoad();}
     }catch(e){console.error(e)}
   });
 })();
