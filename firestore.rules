@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && myProfile().data.role == "admin";
+    }
+
+    function isSeller() {
+      return signedIn() && myProfile().data.role == "seller";
+    }
+
+    function isCustomer() {
+      return signedIn() && myProfile().data.role == "customer";
+    }
+
+    // User profile: a user can read their own profile.
+    // Role is immutable from the browser; admin is never self-assignable.
+    match /profiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role in ["customer", "seller"];
+
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == request.resource.data.role
+        && request.resource.data.uid == uid;
+
+      allow delete: if isAdmin();
+    }
+
+    // Products: customers can browse; sellers manage their own products;
+    // admins have full control.
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        || (isSeller() && request.resource.data.sellerId == request.auth.uid);
+      allow update: if isAdmin()
+        || (isSeller()
+            && resource.data.sellerId == request.auth.uid
+            && request.resource.data.sellerId == resource.data.sellerId);
+      allow delete: if isAdmin()
+        || (isSeller() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // Orders: customers own their orders; sellers can access orders assigned
+    // to them; admins have full access.
+    match /orders/{orderId} {
+      allow create: if isCustomer()
+        && request.resource.data.customerId == request.auth.uid;
+
+      allow read: if isAdmin()
+        || (isCustomer() && resource.data.customerId == request.auth.uid)
+        || (isSeller() && resource.data.sellerId == request.auth.uid);
+
+      allow update: if isAdmin()
+        || (isCustomer()
+            && resource.data.customerId == request.auth.uid
+            && request.resource.data.customerId == resource.data.customerId)
+        || (isSeller()
+            && resource.data.sellerId == request.auth.uid
+            && request.resource.data.sellerId == resource.data.sellerId);
+
+      allow delete: if isAdmin();
+    }
+
+    // Global settings are admin-only.
+    match /appSettings/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Everything else is locked by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
