@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "diva-queen-fac6c",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "cleanUrls": true
+  }
+}
