@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "diva-queen-fac6c"
+  },
+  "targets": {
+    "diva-queen-fac6c": {
+      "hosting": {
+        "diva-queen-fac6c": [
+          "diva-queen-fac6c"
+        ]
+      }
+    }
+  }
+}
