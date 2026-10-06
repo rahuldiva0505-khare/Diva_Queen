@@ -12,8 +12,81 @@ window.DQ_API_BASE=(location.protocol!=="file:"?location.origin:"");
 const KEY='dq_final_v8';
 const REMOTE_SYNC_ENABLED=false;
 let remoteSyncTimer=null, remoteSyncBusy=false;
-async function remoteSave(){ if(!REMOTE_SYNC_ENABLED) return; clearTimeout(remoteSyncTimer); remoteSyncTimer=setTimeout(async()=>{ if(remoteSyncBusy)return; remoteSyncBusy=true; try{ await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:db})}); }catch(e){ console.warn('Remote sync failed',e); } finally{remoteSyncBusy=false;} },250); }
-async function remoteLoad(){ if(!REMOTE_SYNC_ENABLED)return; try{ const r=await fetch('/api/state'); if(!r.ok)return; const x=await r.json(); if(x && x.state && x.state.admin){ db=x.state; localStorage.setItem(KEY,JSON.stringify(db)); if(typeof syncTop==='function')syncTop(); if(typeof show==='function')show('home'); } }catch(e){ console.warn('Remote load failed',e); } }
+async function remoteSave(){
+  try{
+    const f=window.dqFirebase;
+    const u=f?.fa?.currentUser;
+    if(!u)return;
+    const role=window.dqAuthProfile?.role;
+    const fs=f.fs;
+    const clean=(obj,removeKeys=[])=>{
+      const x={...(obj||{})};
+      removeKeys.forEach(k=>delete x[k]);
+      return x;
+    };
+    const batch=fs.batch();
+
+    if(role==='admin'){
+      (db.products||[]).forEach(p=>batch.set(fs.collection('products').doc(String(p.id)),clean(p,['pass']),{merge:true}));
+      (db.orders||[]).forEach(o=>batch.set(fs.collection('orders').doc(String(o.id)),clean(o,['pass']),{merge:true}));
+      (db.users||[]).forEach(x=>{
+        const uid=x.id===u.uid?u.uid:null;
+        if(uid)batch.set(fs.collection('profiles').doc(uid),clean({...x,uid,role:'customer'},['pass']),{merge:true});
+      });
+      (db.sellers||[]).forEach(x=>{
+        const uid=x.id===u.uid?u.uid:null;
+        if(uid)batch.set(fs.collection('profiles').doc(uid),clean({...x,uid,role:'seller'},['pass']),{merge:true});
+      });
+      batch.set(fs.collection('appSettings').doc('main'),clean(db.settings||{},['adminPass','password','pass']),{merge:true});
+    }else if(role==='customer'){
+      batch.set(fs.collection('profiles').doc(u.uid),clean({...db.users?.find(x=>x.id===u.uid),uid:u.uid,role:'customer'},['pass']),{merge:true});
+      (db.orders||[]).filter(o=>String(o.customerId||o.userId||'')===String(u.uid)).forEach(o=>{
+        batch.set(fs.collection('orders').doc(String(o.id)),clean({...o,customerId:u.uid},['pass']),{merge:true});
+      });
+    }else if(role==='seller'){
+      batch.set(fs.collection('profiles').doc(u.uid),clean({...db.sellers?.find(x=>x.id===u.uid),uid:u.uid,role:'seller'},['pass']),{merge:true});
+      (db.products||[]).filter(p=>String(p.sellerId||'')===String(u.uid)).forEach(p=>{
+        batch.set(fs.collection('products').doc(String(p.id)),clean(p,['pass']),{merge:true});
+      });
+      (db.orders||[]).filter(o=>(o.items||[]).some(i=>String(i.sellerId||'')===String(u.uid))).forEach(o=>{
+        batch.set(fs.collection('orders').doc(String(o.id)),clean(o,['pass']),{merge:true});
+      });
+    }
+    await batch.commit();
+  }catch(e){console.warn('Firebase Firestore sync failed',e);}
+}
+async function remoteLoad(){
+  try{
+    const f=window.dqFirebase;
+    const u=f?.fa?.currentUser;
+    if(!u)return;
+    const role=window.dqAuthProfile?.role;
+    if(!role)return;
+    const fs=f.fs;
+
+    const products=await fs.collection('products').get();
+    if(!products.empty) db.products=products.docs.map(d=>({...d.data(),id:d.id}));
+
+    if(role==='admin'){
+      const orders=await fs.collection('orders').get();
+      if(!orders.empty) db.orders=orders.docs.map(d=>({...d.data(),id:d.id}));
+      const settings=await fs.collection('appSettings').doc('main').get();
+      if(settings.exists) db.settings={...db.settings,...settings.data()};
+    }else if(role==='customer'){
+      const orders=await fs.collection('orders').where('customerId','==',u.uid).get();
+      db.orders=orders.docs.map(d=>({...d.data(),id:d.id}));
+    }else if(role==='seller'){
+      const orders=await fs.collection('orders').where('sellerId','==',u.uid).get();
+      db.orders=orders.docs.map(d=>({...d.data(),id:d.id}));
+      // Keep only this seller's products if the account is a seller.
+      db.products=db.products.filter(p=>String(p.sellerId||'')===String(u.uid) || String(p.sellerId||'')==='main');
+    }
+
+    localStorage.setItem(KEY,JSON.stringify(db));
+    if(typeof syncTop==='function')syncTop();
+    if(typeof updateUI==='function')updateUI();
+  }catch(e){console.warn('Firebase Firestore load failed',e);}
+}
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||{users:[],sellers:[{id:'s1',name:'Demo Seller',phone:'9999999999',pass:'1234'}],products:[{id:'p1',name:'Premium Kurti Set',price:899,mrp:1299,cat:'Fashion',emoji:'👗',photos:[],sizes:['S','M','L','XL'],colors:['Maroon','Black'],stock:20,desc:'Elegant everyday premium kurti set.',discount:31,offer:'Special Offer',gst:5,sellerId:'main'},{id:'p2',name:'Royal Beauty Kit',price:599,mrp:799,cat:'Beauty',emoji:'💄',photos:[],sizes:[],colors:['Pink'],stock:15,desc:'Diva Queen beauty essentials.',discount:25,offer:'Beauty Offer',gst:5,sellerId:'main'}],orders:[],admin:{user:'admin',pass:'1234'},settings:{whatsapp:'',supportChatNumber:'',supportCallNumber:'',storeName:'Diva Queen',commissionPct:10,walletEnabled:true}};
 db.admin=db.admin||{user:'admin',pass:'1234'};db.admin.user=db.admin.user||'admin';db.admin.pass=db.admin.pass||'1234';db.admin.phone=db.admin.phone||'9999999998';db.admin.email=db.admin.email||'admin@divaqueen.in';db.sellers=(db.sellers||[]).map(x=>({...x,email:x.email||(x.id==='s1'?'demo@divaqueen.in':'')}));db.users=(db.users||[]).map(x=>({...x,email:x.email||''}));db.notifications=db.notifications||[];db.settings=db.settings||{};db.settings.supportChatNumber=db.settings.supportChatNumber||'';db.settings.supportCallNumber=db.settings.supportCallNumber||'';db.settings.walletEnabled=db.settings.walletEnabled!==false;db.settings.commissionPct=Number(db.settings.commissionPct??10);db.settings.adDailyDefault=Number(db.settings.adDailyDefault??50);db.settings.adminWallet=Number(db.settings.adminWallet??0);db.settings.adminWalletTx=db.settings.adminWalletTx||[];db.adminWallet=Number(db.adminWallet??db.settings.adminWallet??0);db.adminWalletTx=db.adminWalletTx||db.settings.adminWalletTx||[];db.settings.adminWallet=db.adminWallet;db.settings.adminWalletTx=db.adminWalletTx;db.withdrawalRequests=db.withdrawalRequests||[];db.settings.storeName=db.settings.storeName||'Diva Queen';db.sellers=(db.sellers||[]).map(s=>({...s,wallet:Number(s.wallet||0),walletTx:s.walletTx||[],adCampaigns:s.adCampaigns||[],payouts:s.payouts||[]}));db.orders=(db.orders||[]).map(o=>({...o,settlements:o.settlements||[],adminHoldAmount:Number(o.adminHoldAmount??o.payable??o.total??0),paymentReceivedAt:o.paymentReceivedAt||o.date||'',payoutDueAt:o.payoutDueAt||((new Date(o.paymentReceivedAt||Date.now()).getTime()+7*86400000))}));db.refundRequests=db.refundRequests||[];db.orders=(db.orders||[]).map(o=>({...o,refundStatus:o.refundStatus||'',refundAmount:Number(o.refundAmount||0),refundRequests:o.refundRequests||[]}));
 let user=JSON.parse(localStorage.getItem('dq_user')||'null'),seller=JSON.parse(localStorage.getItem('dq_seller')||'null'),cart=JSON.parse(localStorage.getItem('dq_cart')||'[]');let state={cat:'All',search:'',size:null,color:null,edit:null};
