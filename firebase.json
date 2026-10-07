@@ -8,5 +8,8 @@
       "**/node_modules/**"
     ],
     "cleanUrls": true
+  },
+  "functions": {
+    "source": "functions"
   }
 }
