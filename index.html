@@ -1002,9 +1002,9 @@ window.addEventListener('load',function(){
   const oldRegister=window.dqFirebaseRegister;
   window.dqFirebaseRegister=async function(role,data){
     if(role!=='customer') return oldRegister(role,data);
-    const phone=String(data.phone||'').replace(/\\D/g,'');
+    const phone=String(data.phone||'').replace(/\D/g,'');
     const realEmail=String(data.email||'').trim().toLowerCase();
-    if(!/^\\d{10}$/.test(phone)||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(realEmail)||!data.password) throw new Error('INVALID_DATA');
+    if(!/^\d{10}$/.test(phone)||!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(realEmail)||!data.password) throw new Error('INVALID_DATA');
     if(String(data.password).length<6) throw new Error('WEAK_PASSWORD');
     const authEmail=phone+'@divaqueen.in';
     const cred=await firebase.auth().createUserWithEmailAndPassword(authEmail,data.password);
@@ -1021,7 +1021,7 @@ window.addEventListener('load',function(){
       const phone=String(document.getElementById('rp')?.value||'').trim();
       const email=String(document.getElementById('re')?.value||'').trim().toLowerCase();
       const pass=String(document.getElementById('rpass')?.value||'');
-      if(!name||!/^[0-9]{10}$/.test(phone)||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||pass.length<6)
+      if(!name||!/^[0-9]{10}$/.test(phone)||!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)||pass.length<6)
         return alert('Name, 10-digit mobile, valid email aur 6+ character password bhariye');
       const x=await window.dqFirebaseRegister('customer',{name,phone,email,password:pass,language:'Hindi'});
       user={...x.profile,id:x.cred.user.uid}; seller=null; isAdmin=false;
@@ -1038,7 +1038,7 @@ window.addEventListener('load',function(){
     try{
       const identity=String(document.getElementById('clphone')?.value||'').trim();
       const pass=String(document.getElementById('clpass')?.value||'');
-      if(!/^[0-9]{10}$/.test(identity)&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identity)) return alert('10 digit mobile number ya registered email dijiye');
+      if(!/^[0-9]{10}$/.test(identity)&&!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(identity)) return alert('10 digit mobile number ya registered email dijiye');
       if(pass.length<6) return alert('Password kam se kam 6 characters ka hona chahiye');
       const x=await window.dqFirebaseLogin('customer',identity,pass);
       user={...x.profile,id:x.cred.user.uid}; seller=null; isAdmin=false;
