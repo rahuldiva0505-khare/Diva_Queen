@@ -995,3 +995,63 @@ window.addEventListener('load',function(){
  window.topLogout=async function(){try{if(window.dqFirebaseLogout)await dqFirebaseLogout();}catch(e){} user=null;seller=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();if(typeof home==='function')home();};
 })();
 </script>
+
+<!-- DIVA QUEEN CUSTOMER MOBILE AUTH FIX -->
+<script>
+(function(){
+  const oldRegister=window.dqFirebaseRegister;
+  window.dqFirebaseRegister=async function(role,data){
+    if(role!=='customer') return oldRegister(role,data);
+    const phone=String(data.phone||'').replace(/\\D/g,'');
+    const realEmail=String(data.email||'').trim().toLowerCase();
+    if(!/^\\d{10}$/.test(phone)||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(realEmail)||!data.password) throw new Error('INVALID_DATA');
+    if(String(data.password).length<6) throw new Error('WEAK_PASSWORD');
+    const authEmail=phone+'@divaqueen.in';
+    const cred=await firebase.auth().createUserWithEmailAndPassword(authEmail,data.password);
+    try{
+      const profileData={name:data.name,phone,email:realEmail,role:'customer',wallet:0,walletTx:[],language:data.language||'Hindi',createdAt:firebase.firestore.FieldValue.serverTimestamp(),uid:cred.user.uid};
+      await firebase.firestore().collection('profiles').doc(cred.user.uid).set(profileData);
+      return {cred,profile:{...profileData}};
+    }catch(e){try{await cred.user.delete();}catch(_){} throw e;}
+  };
+
+  window.customerRegister=async function(){
+    try{
+      const name=String(document.getElementById('rn')?.value||'').trim();
+      const phone=String(document.getElementById('rp')?.value||'').trim();
+      const email=String(document.getElementById('re')?.value||'').trim().toLowerCase();
+      const pass=String(document.getElementById('rpass')?.value||'');
+      if(!name||!/^[0-9]{10}$/.test(phone)||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||pass.length<6)
+        return alert('Name, 10-digit mobile, valid email aur 6+ character password bhariye');
+      const x=await window.dqFirebaseRegister('customer',{name,phone,email,password:pass,language:'Hindi'});
+      user={...x.profile,id:x.cred.user.uid}; seller=null; isAdmin=false;
+      save(); closeModal(); if(typeof syncTop==='function')syncTop(); if(typeof home==='function')home();
+      alert('Customer account successfully create ho gaya');
+    }catch(e){
+      console.error('Customer registration error',e);
+      const code=String(e?.code||'');
+      alert(code==='auth/email-already-in-use'?'Is mobile number se customer account pehle se registered hai':code==='auth/weak-password'?'Password kam se kam 6 characters ka hona chahiye':'Account create nahi hua: '+(e?.message||''));
+    }
+  };
+
+  window.customerLogin=async function(){
+    try{
+      const identity=String(document.getElementById('clphone')?.value||'').trim();
+      const pass=String(document.getElementById('clpass')?.value||'');
+      if(!/^[0-9]{10}$/.test(identity)&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identity)) return alert('10 digit mobile number ya registered email dijiye');
+      if(pass.length<6) return alert('Password kam se kam 6 characters ka hona chahiye');
+      const x=await window.dqFirebaseLogin('customer',identity,pass);
+      user={...x.profile,id:x.cred.user.uid}; seller=null; isAdmin=false;
+      save(); closeModal(); if(typeof syncTop==='function')syncTop(); if(typeof home==='function')home();
+      alert('Customer login successful');
+    }catch(e){
+      console.error('Customer login error',e);
+      const code=String(e?.code||''),msg=String(e?.message||'');
+      if(code==='auth/invalid-credential'||code==='auth/user-not-found'||code==='auth/wrong-password') alert('Mobile/email ya password galat hai');
+      else if(code==='auth/too-many-requests') alert('Bahut attempts ho gaye. Thodi der baad try karein.');
+      else if(msg==='ROLE_MISMATCH') alert('Ye customer account nahi hai');
+      else alert('Customer login error: '+(code||msg||'Unknown error'));
+    }
+  };
+})();
+</script>
