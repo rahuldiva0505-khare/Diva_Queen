@@ -942,9 +942,14 @@ window.addEventListener('load',function(){
   async function signInIdentity(identity,pass){
     identity=String(identity||'').trim();
     let email=identity;
-    if(isPhone(identity)){const q=await fs.collection('profiles').where('phone','==',identity).limit(1).get();if(q.empty)throw new Error('MOBILE_NOT_FOUND');email=q.docs[0].data().email;}
+    if(isPhone(identity)){
+      // Phone login uses a deterministic Firebase Auth email alias.
+      // This avoids an unauthenticated Firestore phone lookup.
+      email=identity+'@divaqueen.in';
+    }
     if(!isEmail(email))throw new Error('EMAIL_REQUIRED');
-    const cred=await fa.signInWithEmailAndPassword(normEmail(email),pass);return {cred,profile:await profile(cred.user.uid)};
+    const cred=await fa.signInWithEmailAndPassword(normEmail(email),pass);
+    return {cred,profile:await profile(cred.user.uid)};
   }
   window.dqFirebaseLogin=async function(role,identity,pass){
     identity=String(identity||'').trim();
