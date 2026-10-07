@@ -1,4 +1,4 @@
-const CACHE_NAME='diva-queen-pwa-v4';
+const CACHE_NAME='diva-queen-pwa-v5';
 const BASE='/Diva_Queen/';
 self.addEventListener('install',e=>{e.waitUntil(self.skipWaiting())});
 self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
