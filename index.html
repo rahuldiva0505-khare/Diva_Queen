@@ -937,7 +937,7 @@ window.addEventListener('load',function(){
   const fa=firebase.auth(), fs=firebase.firestore();
   window.dqFirebase={fa,fs};
   const normEmail=e=>String(e||'').trim().toLowerCase();
-  const isEmail=v=>/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(String(v||''));
+  const isEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||''));
   const isPhone=v=>/^\d{10}$/.test(String(v||'').trim());
   async function profile(uid){const d=await fs.collection('profiles').doc(uid).get();return d.exists?d.data():null;}
   async function signInIdentity(identity,pass){
@@ -989,7 +989,7 @@ window.addEventListener('load',function(){
  const oldCL=window.customerLogin,oldCR=window.customerRegister,oldSL=window.sellerDoLogin,oldSR=window.createSellerAccount,oldAL=window.doAdminLogin;
  window.customerLogin=async function(){try{const x=await dqFirebaseLogin('customer',document.getElementById('clphone')?.value||'',document.getElementById('clpass')?.value||'');user={...x.profile,id:x.cred.user.uid};seller=null;isAdmin=false;closeModal();syncTop();home();alert('Customer login successful');}catch(e){alert(e.message==='MOBILE_NOT_FOUND'?'Mobile registered nahi hai':e.message==='ROLE_MISMATCH'?'Ye customer account nahi hai':'Mobile/email ya password galat hai');}};
  window.customerRegister=async function(){try{const name=document.getElementById('rn')?.value.trim(),phone=document.getElementById('rp')?.value.trim(),email=document.getElementById('re')?.value.trim(),pass=document.getElementById('rpass')?.value||'';if(!name||!/^\d{10}$/.test(phone)||!isEmailLocal(email)||pass.length<6)return alert('Name, 10-digit mobile, valid email aur 6+ character password bhariye');const x=await dqFirebaseRegister('customer',{name,phone,email,password:pass,wallet:0,walletTx:[],language:'Hindi'});user={...x.profile,id:x.cred.user.uid};seller=null;isAdmin=false;closeModal();syncTop();home();alert('Customer account Firebase me create ho gaya');}catch(e){alert(e.code==='auth/email-already-in-use'?'Email already registered':e.code==='auth/weak-password'||e.message==='WEAK_PASSWORD'?'Password kam se kam 6 characters ka hona chahiye':'Account create nahi hua: '+(e.message||''));}};
- function isEmailLocal(v){return /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(String(v||''));}
+ function isEmailLocal(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||''));}
  window.sellerDoLogin=async function(){try{const x=await dqFirebaseLogin('seller',document.getElementById('slphone')?.value||'',document.getElementById('slpass')?.value||'');seller={...x.profile,id:x.cred.user.uid};user=null;isAdmin=false;closeModal();syncTop();show('seller');alert('Seller login successful');}catch(e){alert(e.message==='MOBILE_NOT_FOUND'?'Mobile registered nahi hai':e.message==='ROLE_MISMATCH'?'Ye seller account nahi hai':'Seller mobile/email ya password galat hai');}};
  window.doAdminLogin=async function(){try{const identity=document.getElementById('aluser')?.value||'',pass=document.getElementById('alpass')?.value||'';const x=await dqFirebaseLogin('admin',identity,pass);isAdmin=true;user=null;seller=null;closeModal();syncTop();show('admin');alert('Admin login successful');}catch(e){alert(e.message==='MOBILE_NOT_FOUND'?'Admin mobile registered nahi hai':e.message==='ROLE_MISMATCH'?'Admin access nahi hai':'Admin email/mobile ya password galat hai');}};
  window.topLogout=async function(){try{if(window.dqFirebaseLogout)await dqFirebaseLogout();}catch(e){} user=null;seller=null;isAdmin=false;save();if(typeof syncTop==='function')syncTop();if(typeof home==='function')home();};
