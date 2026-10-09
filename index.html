@@ -447,7 +447,70 @@ function sellerPage(){dqRefreshSearchLists();
 }
 function sendCustomerStatusWhatsApp(o,status){let num=String(o?.phone||'').replace(/\D/g,'');if(num.length===10)num='91'+num;if(!/^91\d{10}$/.test(num))return;let msg=`Diva Queen Order Update\nOrder: ${o.id}\nCustomer: ${o.customer||o.customerName||''}\nStatus: ${status}\n\nAapke order ka latest update: ${status}.\nDiva Queen`;window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');}
 
-function labelHTML(o){let a=o.addressObj||{};let itemSeller=(o.items||[]).find(i=>seller&&i.sellerId===seller.id)||o.items?.[0]||{};let ss=itemSeller.sellerSnapshot||{};let sa=ss.addressObj||{};let returnAddr=[sa.house,sa.area,sa.landmark,sa.city,sa.state,sa.pin].filter(Boolean).join(', ');return `<html><head><meta charset=\"UTF-8\"><title>Shipping Label ${esc(o.id)}</title><style>body{font-family:Arial;margin:0;padding:20px}.label{width:420px;border:2px solid #111;padding:18px}.title{text-align:center;font-size:22px;font-weight:bold}.box{border-top:1px solid #111;margin-top:12px;padding-top:12px}.pin{font-size:24px;font-weight:bold}</style></head><body><div class=\"label\"><div class=\"title\">DIVA QUEEN — SHIPPING LABEL</div><div class=\"box\"><b>DELIVER TO</b><h2>${esc(a.name||o.customer)}</h2><div>${esc(a.house||'')}<br>${esc(a.area||'')}${a.landmark?'<br>Landmark: '+esc(a.landmark):''}<br>${esc(a.city||'')}, ${esc(a.state||'')}<br><span class=\"pin\">PIN: ${esc(a.pin||'')}</span></div><p><b>Mobile:</b> ${esc(a.phone||o.phone||'')}</p></div><div class=\"box\"><b>ORDER</b><p><b>Order ID:</b> ${esc(o.id)}<br><b>Payment:</b> ${esc(o.payment)}<br><b>Status:</b> ${esc(o.status)}</p>${(o.items||[]).map(i=>`<p><b>${esc(i.name)}</b><br>Qty: ${i.qty} • Size: ${esc(i.size||'-')} • Color: ${esc(i.color||'-')}</p>`).join('')}</div><div class=\"box\"><b>SELLER / RETURN TO</b><p><b>${esc(ss.businessName||ss.name||'Diva Queen')}</b><br>Mobile: ${esc(ss.phone||'')}${ss.gstin?'<br>GSTIN: '+esc(ss.gstin):''}<br>${esc(returnAddr||'Return address not available')}</p></div></div></body></html>`}
+function labelHTML(o){let a=o.addressObj||{};let itemSeller=(o.items||[]).find(i=>seller&&i.sellerId===seller.id)||o.items?.[0]||{};let ss=itemSeller.sellerSnapshot||{};let sa=ss.addressObj||{};let returnAddr=[sa.house,sa.area,sa.landmark,sa.city,sa.state,sa.pin].filter(Boolean).join(', ');return `<html><head><meta charset=\"UTF-8\"><title>Shipping Label ${esc(o.id)}</title><style>body{font-family:Arial;margin:0;padding:20px}.label{width:420px;border:2px solid #111;padding:18px}.title{text-align:center;font-size:22px;font-weight:bold}.box{border-top:1px solid #111;margin-top:12px;padding-top:12px}.pin{font-size:24px;font-weight:bold}</style></head><body><div class=\"label\"><div class=\"title\">DIVA QUEEN — SHIPPING LABEL</div><div class=\"box\"><b>DELIVER TO</b><h2>${esc(a.name||o.customer)}</h2><div>${esc(a.house||'')}<br>${esc(a.area||'')}${a.landmark?'<br>Landmark: '+esc(a.landmark):''}<br>${esc(a.city||'')}, ${esc(a.state||'')}<br><span class=\"pin\">PIN: ${esc(a.pin||'')}</span></div><p><b>Mobile:</b> ${esc(a.phone||o.phone||'')}</p></div><div class=\"box\"><b>ORDER</b><p><b>Order ID:</b> ${esc(o.id)}<br><b>Payment:</b> ${esc(o.payment)}<br><b>Status:</b> ${esc(o.status)}</p>${(o.items||[]).map(i=>`<p><b>${esc(i.name)}</b><br>Qty: ${i.qty} • Size: ${esc(i.size||'-')} • Color: ${esc(i.color||'-')}</p>`).join('')}</div><div class=\"box\"><b>SELLER / RETURN TO</b><p><b>${esc(ss.businessName||ss.name||'Diva Queen')}</b><br>Mobile: ${esc(ss.phone||'')}${ss.gstin?'<br>GSTIN: '+esc(ss.gstin):''}<br>${esc(returnAddr||'Return address not available')}</p></div></div>
+<!-- DIVA QUEEN MULTI-USER FOUNDATION: Firebase-backed customer and seller registration -->
+<script>
+(function(){
+  const emailOK=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
+  window.dqFirebaseRegister=async function(role,data){
+    const phone=String(data.phone||'').replace(/\D/g,'');
+    const realEmail=String(data.email||'').trim().toLowerCase();
+    const name=String(data.name||'').trim();
+    if(!['customer','seller'].includes(role)) throw new Error('REGISTRATION_NOT_ALLOWED');
+    if(!name||!/^\d{10}$/.test(phone)||!emailOK(realEmail)||!data.password) throw new Error('INVALID_DATA');
+    if(String(data.password).length<6) throw new Error('WEAK_PASSWORD');
+    const fa=window.dqFirebase.fa, fs=window.dqFirebase.fs;
+    // Phone-based login alias avoids public phone-number lookups.
+    const authEmail=phone+'@divaqueen.in';
+    const cred=await fa.createUserWithEmailAndPassword(authEmail,String(data.password));
+    const profileData={...data,name,phone,email:realEmail,role,uid:cred.user.uid,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+    delete profileData.password;
+    try {
+      await fs.collection('profiles').doc(cred.user.uid).set(profileData);
+    } catch(e) {
+      try { await cred.user.delete(); } catch(_) {}
+      throw e;
+    }
+    window.dqAuthProfile=profileData;
+    return {cred,profile:profileData};
+  };
+
+  window.createSellerAccount=async function(){
+    const val=id=>String(document.getElementById(id)?.value||'').trim();
+    const name=val('srName'), businessName=val('srBusiness'), phone=val('srPhone');
+    const email=val('srEmail').toLowerCase(), gstin=val('srGST'), pass=String(document.getElementById('srPass')?.value||'');
+    const house=val('srHouse'), area=val('srArea'), landmark=val('srLandmark'), city=val('srCity'), statev=val('srState'), pin=val('srPin');
+    if(!name||!businessName||!/^\d{10}$/.test(phone)||!emailOK(email)||pass.length<6||!house||!area||!city||!statev||!/^\d{6}$/.test(pin))
+      return alert('Naam, shop, 10-digit mobile, valid email, 6+ character password aur poora address bhariye.');
+    const btn=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')==='createSellerAccount()');
+    if(btn){btn.disabled=true;btn.textContent='Account ban raha hai…';}
+    try {
+      const x=await window.dqFirebaseRegister('seller',{
+        name,businessName,phone,email,gstin,
+        password:pass,
+        addressObj:{house,area,landmark,city,state:statev,pin},
+        wallet:0,walletTx:[],adCampaigns:[],payouts:[],status:'pending',language:'Hindi'
+      });
+      const profile={...x.profile,id:x.cred.user.uid};
+      seller=profile; user=null; isAdmin=false;
+      db.sellers=db.sellers||[];
+      db.sellers=db.sellers.filter(z=>String(z.id)!==String(profile.id));
+      db.sellers.push(profile);
+      save(); closeModal(); if(typeof syncTop==='function')syncTop(); if(typeof show==='function')show('seller');
+      alert('Seller account ban gaya! Admin approval ke baad selling shuru kar sakega.');
+    } catch(e) {
+      console.error('Seller registration failed',e);
+      const code=String(e?.code||'');
+      alert(code==='auth/email-already-in-use'?'Is mobile ka account pehle se registered hai. Login karein.':
+        code==='auth/weak-password'||e.message==='WEAK_PASSWORD'?'Password kam se kam 6 characters ka rakhein.':
+        code==='auth/network-request-failed'?'Internet connection check karke dobara try karein.':
+        'Seller account nahi bana: '+(e.message||code||'Unknown error'));
+    } finally { if(btn){btn.disabled=false;btn.textContent='Create Seller Account';} }
+  };
+})();
+</script>
+</body></html>`}
 function downloadLabel(id){let o=db.orders.find(x=>x.id===id);if(!o)return;let html=labelHTML(o);let blob=new Blob([html],{type:'text/html;charset=utf-8'});let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download='Diva_Queen_Shipping_Label_'+String(o.id).replace(/[^a-z0-9_-]/gi,'_')+'.html';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function printLabel(id){let o=db.orders.find(x=>x.id===id);if(!o)return;let w=window.open('','_blank');if(!w)return alert('Please allow pop-ups to print label.');w.document.write(labelHTML(o).replace('</body>','<script>window.onload=function(){window.print()}<\/script></body>'));w.document.close()}
 function topLogout(){user=null;seller=null;isAdmin=false;localStorage.removeItem('dq_user');localStorage.removeItem('dq_seller');try{save();}catch(e){};if(typeof closeModal==='function')closeModal();if(typeof syncTop==='function')syncTop();if(typeof updateUI==='function')updateUI();home();alert('Logout successful');}
