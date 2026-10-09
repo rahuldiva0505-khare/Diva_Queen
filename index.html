@@ -586,8 +586,8 @@ function labelHTML(o){let a=o.addressObj||{};let itemSeller=(o.items||[]).find(i
     }
   };
 })();
-</script>
-</body></html>`}
+<\/script>
+</body></html>`}</script><script>
 function downloadLabel(id){let o=db.orders.find(x=>x.id===id);if(!o)return;let html=labelHTML(o);let blob=new Blob([html],{type:'text/html;charset=utf-8'});let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download='Diva_Queen_Shipping_Label_'+String(o.id).replace(/[^a-z0-9_-]/gi,'_')+'.html';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function printLabel(id){let o=db.orders.find(x=>x.id===id);if(!o)return;let w=window.open('','_blank');if(!w)return alert('Please allow pop-ups to print label.');w.document.write(labelHTML(o).replace('</body>','<script>window.onload=function(){window.print()}<\/script></body>'));w.document.close()}
 function topLogout(){user=null;seller=null;isAdmin=false;localStorage.removeItem('dq_user');localStorage.removeItem('dq_seller');try{save();}catch(e){};if(typeof closeModal==='function')closeModal();if(typeof syncTop==='function')syncTop();if(typeof updateUI==='function')updateUI();home();alert('Logout successful');}
