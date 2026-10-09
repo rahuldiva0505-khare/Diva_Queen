@@ -1224,3 +1224,59 @@ window.addEventListener('load',function(){
   };
 })();
 </script>
+
+
+<!-- DIVA QUEEN CUSTOMER AUTH FINAL OVERRIDE -->
+<script>
+(function(){
+  const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
+  window.customerRegister = async function(){
+    const get=id=>String(document.getElementById(id)?.value||'').trim();
+    const name=get('rn'), phone=get('rp'), email=get('re').toLowerCase();
+    const pass=String(document.getElementById('rpass')?.value||'');
+    if(!name || !/^[0-9]{10}$/.test(phone) || !validEmail(email) || pass.length<6)
+      return alert('Naam, 10-digit mobile, valid email aur kam se kam 6 character password bhariye.');
+    const btn=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')==='customerRegister()');
+    if(btn){btn.disabled=true;btn.textContent='Account ban raha hai…';}
+    try{
+      const x=await window.dqFirebaseRegister('customer',{name,phone,email,password:pass,language:'Hindi',wallet:0,walletTx:[]});
+      user={...x.profile,id:x.cred.user.uid}; seller=null; isAdmin=false;
+      save(); closeModal(); if(typeof syncTop==='function')syncTop(); if(typeof home==='function')home();
+      alert('Customer account ban gaya. Ab isi 10-digit mobile aur password se login karein.');
+    }catch(e){
+      console.error('Customer registration failed',e);
+      const code=String(e?.code||'');
+      alert(code==='auth/email-already-in-use'?'Is mobile number ka account pehle se bana hua hai. Login karein.':
+        code==='auth/weak-password'||e.message==='WEAK_PASSWORD'?'Password kam se kam 6 characters ka rakhein.':
+        code==='auth/network-request-failed'?'Internet connection check karke dobara try karein.':
+        'Account nahi bana: '+(e?.message||code||'Unknown error'));
+    }finally{if(btn){btn.disabled=false;btn.textContent='Create Account';}}
+  };
+  window.customerLogin = async function(){
+    const identity=String(document.getElementById('clphone')?.value||'').trim();
+    const pass=String(document.getElementById('clpass')?.value||'');
+    const isPhone=/^[0-9]{10}$/.test(identity);
+    if(!isPhone&&!validEmail(identity))return alert('10-digit mobile number ya registered email dijiye.');
+    if(pass.length<6)return alert('Password kam se kam 6 characters ka hona chahiye.');
+    try{
+      const authIdentity=isPhone ? identity+'@divaqueen.in' : identity.toLowerCase();
+      const cred=await firebase.auth().signInWithEmailAndPassword(authIdentity,pass);
+      const snap=await firebase.firestore().collection('profiles').doc(cred.user.uid).get();
+      if(!snap.exists){await firebase.auth().signOut();return alert('Customer profile nahi mila. Admin se account check karwayein.');}
+      const p=snap.data();
+      if(p.role!=='customer'){await firebase.auth().signOut();return alert('Ye customer account nahi hai. Customer account se login karein.');}
+      user={...p,id:cred.user.uid}; seller=null; isAdmin=false;
+      save(); closeModal(); if(typeof syncTop==='function')syncTop(); if(typeof home==='function')home();
+      alert('Customer login successful');
+    }catch(e){
+      console.error('Customer login failed',e);
+      const code=String(e?.code||'');
+      alert(code==='auth/invalid-credential'||code==='auth/wrong-password'||code==='auth/user-not-found' ?
+        'Mobile number ya password galat hai. Naye account mein wahi mobile use karein jo signup par diya tha.' :
+        code==='auth/network-request-failed' ? 'Internet connection check karke dobara try karein.' :
+        'Customer login nahi hua: '+(e?.message||code||'Unknown error'));
+    }
+  };
+})();
+</script>
+
