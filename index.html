@@ -421,7 +421,27 @@ async function saveProduct(role,id){
 function deleteProduct(id){let p=db.products.find(x=>x.id===id);if(!p)return;if(seller&&p.sellerId!==seller.id&&!isAdmin)return alert('Sirf apne product ko delete karein');if(!isAdmin&&!seller)return alert('Admin ya Seller login required');if(confirm('Delete product?')){db.products=db.products.filter(x=>x.id!==id);save();if(isAdmin)adminPage();if(seller)sellerPage();else home();}}
 let isAdmin=false;
 function adminLogin(){modal.classList.remove('hide');modal.innerHTML=`<div class="modal"><div class="sheet"><button class="alt" onclick="closeModal()">✕</button><h2>Main Admin Login</h2><input id="alphone" class="search" inputmode="numeric" maxlength="10" placeholder="10 digit mobile number"><div class="pw"><input id="alpass" class="search" type="password" placeholder="Password"><button class="alt" onclick="eye('alpass')">👁</button></div><button style="width:100%" onclick="adminFirebaseDoLogin()">Login</button><p class="small">Secure Admin Login • Firebase Authentication</p></div></div>`}
-async function adminFirebaseDoLogin(){try{let phone=String(alphone.value||'').replace(/\D/g,'');let pass=String(alpass.value||'');if(!/^\d{10}$/.test(phone))return alert('10 digit mobile number dijiye');if(pass.length<6)return alert('Password kam se kam 6 characters ka hona chahiye');let x=await window.dqFirebaseLogin('admin',phone,pass);isAdmin=true;window.dqAuthProfile=x.profile;closeModal();updateUI();show('admin')}catch(e){console.error(e);if(e&&e.code==='auth/invalid-credential')alert('Mobile number ya password galat hai');else if(e&&e.message==='ROLE_MISMATCH')alert('Ye Admin account nahi hai');else alert('Admin login failed: '+(e&&e.message?e.message:'Unknown error'));}}
+async function adminFirebaseDoLogin(){
+  let phone=String(document.getElementById('alphone')?.value||'').replace(/\D/g,'');
+  let pass=String(document.getElementById('alpass')?.value||'');
+  if(!/^\d{10}$/.test(phone))return alert('10 digit mobile number dijiye');
+  if(!pass)return alert('Password dijiye');
+  try{
+    let x=await window.dqFirebaseLogin('admin',phone,pass);
+    isAdmin=true;window.dqAuthProfile=x.profile;closeModal();updateUI();show('admin');
+  }catch(e){
+    console.error('Firebase admin login failed',e);
+    // Backward compatibility for an admin already saved on this device.
+    const a=db.admin||{};
+    if(String(a.phone||'9999999998')===phone && String(a.pass||'')===pass){
+      isAdmin=true;user=null;seller=null;closeModal();updateUI();show('admin');
+      return alert('Local admin login successful. Internet/cloud login abhi verify nahi hua.');
+    }
+    if(e&&e.code==='auth/invalid-credential')alert('Mobile number ya password galat hai. Purana admin account ho to usi registered mobile/email se login karein.');
+    else if(e&&e.message==='ROLE_MISMATCH')alert('Ye Admin account nahi hai');
+    else alert('Admin login failed: '+(e&&e.message?e.message:'Unknown error'));
+  }
+}
 function adminForgot(){let phone=prompt('Admin registered mobile');let email=prompt('Admin registered email ID');let a=db.admin;if(String(a.phone||'').trim()!==String(phone||'').trim()||String(a.email||'').toLowerCase()!==String(email||'').trim().toLowerCase())return alert('Mobile aur email match nahi hua');let p=prompt('New admin password');if(p){db.admin.pass=p;save();alert('Admin password reset ho gaya')}}
 function adminPage(){dqRefreshSearchLists();
   if(!isAdmin)return adminLogin();
@@ -656,7 +676,22 @@ async function dqStartRazorpayPayment(){
   }catch(e){alert('Real payment start nahi ho paya: '+e.message+'\n\nRazorpay Live keys aur backend server configure karein.');}
 }
 
-function init(){updateUI();home();updateCount();dqRefreshSearchLists()}init();
+function init(){
+  // Recovery: an older/corrupt local save may contain an empty catalog.
+  if(!Array.isArray(db.products)||db.products.length===0){
+    db.products=[
+      {id:'p1',name:'Premium Kurti Set',price:899,mrp:1299,cat:'Fashion',emoji:'👗',photos:[],sizes:['S','M','L','XL'],colors:['Maroon','Black'],stock:20,desc:'Elegant everyday premium kurti set.',discount:31,offer:'Special Offer',gst:5,sellerId:'main'},
+      {id:'p2',name:'Royal Beauty Kit',price:599,mrp:799,cat:'Beauty',emoji:'💄',photos:[],sizes:[],colors:['Pink'],stock:15,desc:'Diva Queen beauty essentials.',discount:25,offer:'Beauty Offer',gst:5,sellerId:'main'}
+    ];
+    try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}
+  }
+  updateUI();home();updateCount();dqRefreshSearchLists();
+}
+try{init();}catch(e){
+  console.error('Diva Queen startup failed',e);
+  const root=document.getElementById('app');
+  if(root)root.innerHTML='<section class="hero"><h1>Diva Queen</h1><p>App start recovery</p><button onclick="location.reload()">Reload App</button><button class="alt" onclick="customerAccount()">Customer Login</button><button class="alt" onclick="sellerLogin()">Seller Login</button><button class="alt" onclick="adminLogin()">Admin Login</button></section>';
+}
 
 function gstRowsForOrders(orders, sellerId){
   const rows=[];
